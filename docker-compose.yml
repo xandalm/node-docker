@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  mysqldb:
+    image: mysql:8.0
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+    - MYSQL_ROOT_PASSWORD=$DB_ROOT_PASSWORD
+    - MYSQL_DATABASE=$DB_NAME
+    ports:
+    - $DB_LOCAL_PORT:$DB_DOCKER_PORT
+    volumes:
+    - ./src/config/db.sql:/docker-entrypoint-initdb.d/db.sql
+    - mysql:/var/lib/mysql
+    - mysql-config:/etc/mysql
+    networks:
+      - mysqlnet
+
+  api:
+    build:
+      context: .
+    restart: always
+    env_file:
+      - ./.env
+    depends_on:
+    - mysqldb
+    ports:
+    - $NODE_LOCAL_PORT:$NODE_DOCKER_PORT
+    - $NODEMON_PORT:$NODEMON_PORT
+    environment:
+    - DB_HOST=mysqldb
+    - DB_USER=$DB_USER
+    - DB_PASSWORD=$DB_ROOT_PASSWORD
+    - DB_NAME=$DB_NAME
+    - DB_PORT=$DB_DOCKER_PORT
+    volumes:
+    - ./:/api
+    - /api/node_modules
+    networks:
+      - mysqlnet
+    command: npm run start
+
+volumes:
+  mysql:
+    external: false
+  mysql-config:
+    external: false
+
+networks:
+  mysqlnet:
