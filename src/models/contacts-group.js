@@ -85,9 +85,10 @@ export default class ContactsGroup extends Model {
                 this.owner.id,
             ]);
 
+            await conn.commit();
+
             this.created_moment = (await (new ContactsGroup).getByOwner(this.owner,this.description)).created_moment;
 
-            await conn.commit();
             conn.release();
 
             return this;
@@ -103,10 +104,9 @@ export default class ContactsGroup extends Model {
      */
     async delete() {
         try {
-            var res;
             const conn = await DB.connect();
             await conn.beginTransaction();
-            res = await conn.query("DELETE FROM ContactsGroups WHERE owner = (SELECT id FROM Persons WHERE public_id = ?) AND number = ?",[
+            var res = await conn.query("DELETE FROM ContactsGroups WHERE owner = (SELECT id FROM Persons WHERE public_id = ?) AND number = ?",[
                 this.owner.public_id,
                 this.number
             ]);
@@ -130,15 +130,14 @@ export default class ContactsGroup extends Model {
      * @returns {Person|null} Group of contacts found.
      */
     async #get(query="",params=[]) {
-        let rows=[];
         try {
             const conn = await DB.connect();
-            [rows] = await conn.query(query,params);
+            var [rows] = await conn.query(query,params);
             conn.release();
-            if(rows.length) {
+            if(rows.length > 0) {
                 this.from(rows[0]);
+                return this;
             }
-            return this;
         } catch (err) {
             console.log(err);
         }
@@ -186,9 +185,9 @@ export default class ContactsGroup extends Model {
      * @return {Array<ContactsGroup>} List of contacts groups.
      */
     async list(filters=[]) {
-        let rows=[];
-        let where;
-        if(filters.length)
+        var rows=[];
+        var where;
+        if(filters.length > 0)
             where = this.parseFilters(filters);
         try {
             const conn = await DB.connect();
@@ -199,10 +198,10 @@ export default class ContactsGroup extends Model {
             }
             else
                 [rows] = await conn.query(sql);
-            if(rows.length) {
-                let [rows2] = await conn.query("SELECT * FROM Persons WHERE id IN (?)",[rows.map((r) => {return r.owner})]);
+            if(rows.length > 0) {
+                var [rows2] = await conn.query("SELECT * FROM Persons WHERE id IN (?)",[rows.map((r) => {return r.owner})]);
                 conn.release();
-                let persons = {};
+                var persons = {};
                 rows2.forEach(r => {
                     persons[r.id] = r;
                 });
@@ -224,7 +223,7 @@ export default class ContactsGroup extends Model {
     }
 
     /**
-     * 
+     * List contacts groups registered to owner.
      * @param {Person} person 
      * @param {Array<Filter>} filters Filters to refine search results
      * Supported fields: the same as in the `list` method.
@@ -232,9 +231,9 @@ export default class ContactsGroup extends Model {
      * @returns {Array<ContactsGroup>}
      */
     async listByPerson(person, filters=[]) {
-        let rows=[];
-        let where;
-        if(filters.length)
+        var rows=[];
+        var where;
+        if(filters.length > 0)
             where = this.parseFilters(filters);
         try {
             const conn = await DB.connect();

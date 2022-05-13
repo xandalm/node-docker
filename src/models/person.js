@@ -94,6 +94,7 @@ export default class Person extends Model {
                 first_name: this.first_name,
                 last_name: this.last_name,
                 birthday: this.birthday,
+                email: this.email
             });
             conn.release();
             return this;
@@ -115,6 +116,7 @@ export default class Person extends Model {
                 first_name: this.first_name,
                 last_name: this.last_name,
                 birthday: this.birthday,
+                email: this.email,
             },this.public_id]);
             await this.getByPublicId(this.public_id);
             conn.release();
@@ -133,7 +135,7 @@ export default class Person extends Model {
         
         try {
             const conn = await DB.connect();
-            const res = await conn.query("DELETE FROM Persons WHERE public_id=?",[
+            const res = await conn.query("UPDATE Persons SET deleted_moment = CURRENT_TIMESTAMP() WHERE public_id = ?",[
                 this.public_id,
             ]);
             conn.release();
@@ -151,15 +153,14 @@ export default class Person extends Model {
      * @returns {Person|null} Person found.
      */
     async #get(query="",params=[]) {
-        let rows=[];
         try {
             const conn = await DB.connect();
-            [rows] = await conn.query(query,params);
+            var [rows] = await conn.query(query,params);
             conn.release();
-            if(rows.length) {
+            if(rows.length > 0) {
                 this.from(rows[0]);
+                return this;
             }
-            return this;
         } catch (err) {
             console.log(err);
         }
@@ -178,10 +179,19 @@ export default class Person extends Model {
     /**
      * Get person from DB by public ID.
      * @param {String} id  - The person public identificator (uuid).
-     * @returns 
+     * @returns {Person|null}
      */
     async getByPublicId(id) {
         return await this.#get("SELECT * FROM Persons WHERE public_id = ?",[id]);
+    }
+
+    /**
+     * Get person from DB by email.
+     * @param {String} email  - The person email.
+     * @returns {Person|null}
+     */
+     async getByEmail(email) {
+        return await this.#get("SELECT * FROM Persons WHERE email = ?",[email]);
     }
 
     /**
@@ -214,13 +224,13 @@ export default class Person extends Model {
      * @return {Array<Person>} List of persons.
      */
     async list(filters=[]) {
-        let rows=[];
+        var rows=[];
         var where;
         if(filters.length > 0)
             where = this.parseFilters(filters);
         try {
             const conn = await DB.connect();
-            var sql = "SELECT public_id,first_name,last_name,birthday FROM Persons";
+            var sql = "SELECT public_id,first_name,last_name,birthday,email FROM Persons";
             if(where) {
                 sql += ' WHERE '+where.statements.join(' AND ');
                 [rows] = await conn.query(sql,where.values);

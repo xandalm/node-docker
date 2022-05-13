@@ -14,7 +14,7 @@ const PersonMutations = {
         },
         resolve: async (_, args) => {
             const { input } = args;
-            const person = new Person();
+            const person = new Person;
             person.first_name=input.firstName;
             person.last_name=input.lastName;
             person.birthday=input.birthday;
@@ -33,7 +33,7 @@ const PersonMutations = {
         },
         resolve: async (_, args) => {
             const { input } = args;
-            const person = (new Person).getByPublicId(input.publicId);
+            const person = await (new Person).getByPublicId(input.publicId);
             if(person) {
                 person.first_name=input.firstName;
                 person.last_name=input.lastName;
@@ -52,10 +52,11 @@ const PersonMutations = {
                 type: new GraphQLNonNull(PersonInputType)
             }
         },
-        resolve: async (_, args) => {
-            const { input } = args;
-            const person = (new Person).getByPublicId(input.publicId);
-            return await person.delete();
+        resolve: async (_, { input }) => {
+            const person = await (new Person).getByPublicId(input.publicId);
+            if(person)
+                return await person.delete();
+            return false;
         }
     }
 }

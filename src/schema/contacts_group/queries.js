@@ -36,7 +36,9 @@ const ContactsGroupQueries = {
             },
             owner: { type: PersonInputType },
             last: { type: GraphQLInt },
-            filters: { type: GraphQLString }
+            filters: {
+                type: new GraphQLList(GraphQLString)
+            }
         },
         resolve: async (_, { first, last, owner, filters }) => {
             const person = new Person();
