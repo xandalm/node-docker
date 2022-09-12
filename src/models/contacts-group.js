@@ -36,11 +36,12 @@ export default class ContactsGroup extends Model {
     from(obj) {
         if(typeof obj === 'object') {
             this.number=obj.number??null;
-            this.owner=(new Person).from(obj.owner);
+            this.owner=(new Person).from(obj.owner)??this.person;
             this.description=obj.description??null;
             this.created_moment=obj.created_moment??null;
+            return this;
         }
-        return this;
+        return null;
     }
 
     /**

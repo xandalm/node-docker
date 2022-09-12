@@ -58,8 +58,9 @@ export default class Person extends Model {
             this.status = obj.status??null;
             this.created_moment = obj.created_moment??null;
             this.deleted_moment = obj.deleted_moment??null;
+            return this;
         }
-        return this;
+        return null;
     }
 
     /**

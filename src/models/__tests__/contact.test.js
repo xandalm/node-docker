@@ -1,15 +1,15 @@
 
 import { toBeArray } from 'jest-extended';
 import DB from '../connection.js';
-import Person from '../person.js';
+import Contact from '../contact.js';
 
 expect.extend({ toBeArray });
 
-describe("Person", () => {
-    describe("Check attributes type", () => {
-        it('check ', async () => {
-            const person = new Person();
-            const response = await person.list();
+describe("Contact", () => {
+    describe("Check methods", () => {
+        it('check', async () => {
+            const contact = new Contact();
+            const response = await contact.list();
             console.log(response);
             expect(typeof response).toEqual(expect.toBeArray());
         });

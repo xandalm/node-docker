@@ -17,4 +17,8 @@ export default class DB {
     static async connect() {
         return await DB.pool.getConnection();
     }
+
+    static async end() {
+        return await DB.pool.end();
+    }
 }

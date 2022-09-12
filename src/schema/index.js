@@ -1,4 +1,6 @@
 import { GraphQLSchema, GraphQLObjectType } from 'graphql';
+import ContactMutations from './contacts/mutations.js';
+import ContactQueries from './contacts/queries.js';
 import ContactsGroupMutations from './contacts_group/mutations.js';
 import ContactsGroupQueries from './contacts_group/queries.js';
 import PersonMutations from './person/mutations.js';
@@ -9,6 +11,7 @@ const schema = new GraphQLSchema({
         name: 'Query',
         fields: () => ({
             ...PersonQueries,
+            ...ContactQueries,
             ...ContactsGroupQueries
         })
     }),
@@ -16,6 +19,7 @@ const schema = new GraphQLSchema({
         name: 'Mutation',
         fields: () => ({
             ...PersonMutations,
+            ...ContactMutations,
             ...ContactsGroupMutations
         })
     })

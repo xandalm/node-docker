@@ -1,3 +1,4 @@
+import { DatePattern } from "../utils/regexp-patterns.js";
 
 /**
  * Class to represent database entities
@@ -22,6 +23,9 @@ export default class Model {
      */
     parseFilter(filter) {
         var o;
+        if((filter.field == 'created_moment' || filter.field == 'deleted_moment') && !DatePattern.test(filter.value)) {
+            throw `Invalid '${filter.value}' value to '${filter.field}' field.`;
+        }
         if(/^==$/.test(filter.operator))
             o = ' = ';
         else if(/^\^=$/.test(filter.operator)){

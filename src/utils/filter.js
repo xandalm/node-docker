@@ -3,7 +3,8 @@
  */
 export default class Filter {
 
-    static operators = ['==','!=','>','>=','<','<=','^=','$=','*=']
+    // order by length, desc
+    static operators = ['==','!=','>=','<=','^=','$=','*=','>','<']
 
     static get operators_regexp_pattern() {
         return new RegExp(Filter.operators.join('|').replace(/[\^\$\*\!]/g,'\\$&'));
@@ -29,7 +30,7 @@ export default class Filter {
      * @returns {boolean}
      */
     static validate(str) {
-        return new RegExp(`([a-z0-9_]+)(${Filter.operators_regexp_pattern.source})([a-z0-9_ ]+)`,'i').test(str);
+        return new RegExp(`([a-z0-9_]+)(${Filter.operators_regexp_pattern.source})([a-z0-9\-_ ]+)`,'i').test(str);
     }
 
     /**
@@ -68,7 +69,7 @@ export default class Filter {
         } else {
             if(Filter.validate(source)) {
                 filter = source.replace(Filter.operators_regexp_pattern,'+|+$&+|+');
-                [field,operator,value] = filter.split('+|+');console.log(filter);
+                [field,operator,value] = filter.split('+|+');
                 return {recognizedFilter: new Filter(field,operator,value)};
             } else {
                 return {invalidFilter: source};
