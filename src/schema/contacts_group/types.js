@@ -9,6 +9,12 @@ import { PersonInputType, PersonType } from '../person/types.js';
 const ContactsGroupType = new GraphQLObjectType({
     name: 'ContactsGroup',
     fields: () => ({
+        publicId: {
+            type: GraphQLString,
+            resolve: (obj) => {
+                return obj.public_id??null;
+            }
+        },
         owner: { type: PersonType },
         description: { type: GraphQLString },
         createdMoment: {
@@ -23,6 +29,12 @@ const ContactsGroupType = new GraphQLObjectType({
 const ContactsGroupNonOwnerType = new GraphQLObjectType({
     name: 'ContactsGroupNonOwner',
     fields: () => ({
+        publicId: {
+            type: GraphQLString,
+            resolve: (obj) => {
+                return obj.public_id??null;
+            }
+        },
         description: { type: GraphQLString },
         createdMoment: {
             type: GraphQLString,
@@ -36,6 +48,7 @@ const ContactsGroupNonOwnerType = new GraphQLObjectType({
 const ContactsGroupInputType = new GraphQLInputObjectType({
     name: 'ContactsGroupInput',
     fields: () => ({
+        publicId: { type: GraphQLString },
         owner: { type: PersonInputType },
         description: { type: GraphQLString },
     })

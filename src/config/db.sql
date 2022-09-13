@@ -23,17 +23,6 @@ CREATE TABLE IF NOT EXISTS `Persons` (
     CONSTRAINT `UQ_Persons_email` UNIQUE (`email`)
 );
 
-CREATE TABLE IF NOT EXISTS `ContactsGroups` (
-    `owner` INT UNSIGNED NOT NULL,
-    `number` INT UNSIGNED NOT NULL,
-    `description` VARCHAR(50),
-    `created_moment` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-
-    CONSTRAINT `PK_ContactsGroups` PRIMARY KEY (`owner`,`number`),
-    CONSTRAINT `FK_ContactsGroups_owner` FOREIGN KEY (`owner`) REFERENCES `Persons`(`id`),
-    CONSTRAINT `UQ_ContactsGroups_desc` UNIQUE (`description`)
-);
-
 CREATE TABLE IF NOT EXISTS `Contacts` (
     `owner` INT UNSIGNED NOT NULL,
     `person` INT UNSIGNED NOT NULL,
@@ -43,6 +32,21 @@ CREATE TABLE IF NOT EXISTS `Contacts` (
     CONSTRAINT `PK_Contacts` PRIMARY KEY (`owner`,`person`),
     CONSTRAINT `FK_Contacts_owner` FOREIGN KEY (`owner`) REFERENCES `Persons`(`id`),
     CONSTRAINT `FK_Contacts_person` FOREIGN KEY (`person`) REFERENCES `Persons`(`id`)
+);
+
+CREATE TABLE IF NOT EXISTS `ContactsGroups` (
+    `id` INT UNSIGNED AUTO_INCREMENT,
+    `owner` INT UNSIGNED NOT NULL,
+    `public_id` VARCHAR(5),
+    `description` VARCHAR(50),
+    `created_moment` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+
+    INDEX(`public_id`),
+
+    CONSTRAINT `PK_ContactsGroups` PRIMARY KEY (`id`),
+    CONSTRAINT `FK_ContactsGroups_owner` FOREIGN KEY (`owner`) REFERENCES `Persons`(`id`),
+    CONSTRAINT `UQ_Persons_public_id` UNIQUE (`public_id`),
+    CONSTRAINT `UQ_ContactsGroups_desc` UNIQUE (`owner`,`description`)
 );
 
 -- ContactsGroup and Contacts Link
@@ -55,6 +59,6 @@ CREATE TABLE IF NOT EXISTS `ContactsGroupsLinks` (
     INDEX (`owner`),
     INDEX (`owner`,`group`),
 
-    CONSTRAINT `FK_CGL_group` FOREIGN KEY (`owner`,`group`) REFERENCES `ContactsGroups`(`owner`,`number`) ON UPDATE CASCADE ON DELETE CASCADE, 
-    CONSTRAINT `FK_CGL_contact` FOREIGN KEY (`owner`,`person`) REFERENCES `Contacts`(`owner`,`person`) ON DELETE CASCADE 
+    CONSTRAINT `FK_CGL_group` FOREIGN KEY (`group`) REFERENCES `ContactsGroups`(`id`), 
+    CONSTRAINT `FK_CGL_contact` FOREIGN KEY (`owner`,`person`) REFERENCES `Contacts`(`owner`,`person`) 
 );

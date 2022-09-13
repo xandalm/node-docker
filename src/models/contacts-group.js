@@ -1,3 +1,5 @@
+import hashint from '@xandealm/hashint';
+
 import DB from "./connection.js";
 
 import Model from "./model.js";
@@ -15,14 +17,16 @@ export default class ContactsGroup extends Model {
 
     /**
      * 
-     * @param {number} number Group sequence.
+     * @param {number} id Group identificator.
+     * @param {String} public_id Group public identificator.
      * @param {Person} owner Group owner, the person who created the group.
      * @param {String} description Group description.
      * @param {Date} created_moment The moment the group was registered.
      */
-    constructor(number=null,owner=null,description=null,created_moment=null) {
+    constructor(id=null,public_id=null,owner=null,description=null,created_moment=null) {
         super();
-        this.number = number;
+        this.id = id;
+        this.public_id = public_id;
         this.owner = owner;
         this.description = description;
         this.created_moment = created_moment;
@@ -30,12 +34,13 @@ export default class ContactsGroup extends Model {
 
     /**
      * Create a contacts group from object.
-     * @param {Object} obj The object that contains person properties.
+     * @param {Object} obj The object that contains contacts group properties.
      * @returns {ContactsGroup}
      */
     from(obj) {
         if(typeof obj === 'object') {
-            this.number=obj.number??null;
+            this.id=obj.id??null;
+            this.public_id=obj.public_id??null;
             this.owner=(new Person).from(obj.owner)??this.person;
             this.description=obj.description??null;
             this.created_moment=obj.created_moment??null;
@@ -74,29 +79,41 @@ export default class ContactsGroup extends Model {
      * @returns {ContactsGroup|null} Group that was registered, or null if that fails.
      */
     async insert() {
+        const conn = await DB.connect();
         try {
-
-            const conn = await DB.connect();
-
-            await conn.beginTransaction();
-            
-            const res = await conn.query("INSERT INTO ContactsGroups SET number = (SELECT (MAX(`number`) + 1) as last_number FROM ContactsGroups WHERE `owner` = ?), description = ?, owner = ?",[
+            conn.beginTransaction();
+            var [res] = await conn.query(
+                "INSERT INTO ContactsGroups SET owner = ?, description = ?",[
                 this.owner.id,
-                this.description,
-                this.owner.id,
+                this.description
             ]);
-
-            await conn.commit();
-
-            this.created_moment = (await (new ContactsGroup).getByOwner(this.owner,this.description)).created_moment;
-
-            conn.release();
-
-            return this;
+            this.id = res.insertId;
+            this.public_id = hashint.hashint16(this.id,'contactsgroupstable');
+            await conn.query("UPDATE ContactsGroups SET public_id = ? WHERE id = ?",[this.public_id, this.id]);
+            conn.commit();
+            this.created_moment = (await (new ContactsGroup).getById(this.id)).created_moment;
+            res = this;    
         } catch (err) {
-            console.log(`${err.code} - Failed to create [${this.constructor.name}] at database`);
+            conn.rollback();
+            if(process.env.NODE_ENV === 'dev')
+                console.log(err);
+            res = null;
         }
-        return null;
+        conn.release();
+        return res;
+    }
+
+    async update() {
+        const conn = await DB.connect();
+        res = false;
+        try {
+            var [res] = await conn.query("UPDATE ContactsGroups SET description = ? WHERE public_id = ?",[this.description, this.public_id]);
+            res = res.affectedRows === 1;
+        } catch(err) {
+            if(process.env.NODE_ENV === 'dev')
+                console.log(err);
+        }
+        return res;
     }
 
     /**
@@ -104,31 +121,28 @@ export default class ContactsGroup extends Model {
      * @returns {Boolean} [True] if succeded [False] if not.
      */
     async delete() {
+        const conn = await DB.connect();
+        var res = false;
         try {
-            const conn = await DB.connect();
-            await conn.beginTransaction();
-            var res = await conn.query("DELETE FROM ContactsGroups WHERE owner = (SELECT id FROM Persons WHERE public_id = ?) AND number = ?",[
-                this.owner.public_id,
-                this.number
-            ]);
-            res = await conn.query("UPDATE ContactsGroups SET number = number - 1 WHERE owner = (SELECT id FROM Persons WHERE public_id = ?) AND number > ?",[
-                this.owner.public_id,
-                this.number
-            ]);
-            await conn.commit();
-            conn.release();
-            return true;
+            conn.beginTransaction();
+            await conn.query("DELETE FROM ContactsGroupsLinks WHERE group = ?",[this.id]);
+            await conn.query("DELETE FROM ContactsGroups WHERE id = ?",[this.id]);
+            conn.commit();
+            res = true;
         } catch (err) {
-            console.log(`${err.code} - Failed to delete [${this.constructor.name}] from database`);
+            if(process.env.NODE_ENV === 'dev')
+                console.log(err);
+            conn.rollback();
         }
-        return false;
+        conn.release();
+        return res;
     }
 
     /**
      * Generic method to get one contacts group.
      * @param {String} query The SQL statement.
      * @param {Array<(String|number)>} params Params to compose statement.
-     * @returns {Person|null} Group of contacts found.
+     * @returns {ContactsGroup|null} Group of contacts found.
      */
     async #get(query="",params=[]) {
         try {
@@ -136,7 +150,8 @@ export default class ContactsGroup extends Model {
             var [rows] = await conn.query(query,params);
             conn.release();
             if(rows.length > 0) {
-                this.from(rows[0]);
+                this.from({...rows[0], owner: { id: rows[0].owner}});
+                this.owner = await (new Person).getById(this.owner.id);
                 return this;
             }
         } catch (err) {
@@ -146,20 +161,23 @@ export default class ContactsGroup extends Model {
     }
 
     /**
-     * Get group from DB by owner and description.
+     * Get group from DB by ID.
      * @param {Person} owner The person identificator. May have ID or public ID.
-     * @param {String} description The group description.
-     * @returns {Person|null}
+     * @param {String} id The contacts group identificator.
+     * @returns {ContactsGroup|null}
      */
-    async getByOwner(owner,description) {
-        var cg;
-        if(owner.id)
-            cg = await this.#get("SELECT * FROM ContactsGroups WHERE owner = ? AND description = ?",[owner.id,description]);
-        else if(owner.public_id)
-            cg = await this.#get("SELECT * FROM ContactsGroups WHERE owner = (SELECT id FROM Persons WHERE public_id = ?) AND description = ?",[owner.public_id,description]);
-        else
-            throw "The informed owner must have ID or public ID";
-        cg.owner = owner;
+     async getById(id) {
+        var cg = await this.#get("SELECT * FROM ContactsGroups WHERE id = ?",[id]);
+        return cg;
+    }
+
+    /**
+     * Get group from DB by public ID.
+     * @param {String} id The contacts group public identificator.
+     * @returns {ContactsGroup|null}
+     */
+     async getByPublicId(id) {
+        var cg = await this.#get("SELECT * FROM ContactsGroups WHERE public_id = ?",[id]);
         return cg;
     }
 
@@ -209,7 +227,8 @@ export default class ContactsGroup extends Model {
                 rows = rows.map(r => {
                     const p = persons[r.owner];
                     return new ContactsGroup(
-                        r.number,
+                        r.id,
+                        r.public_id,
                         (new Person).from(p),
                         r.description,
                         r.created_moment
@@ -218,7 +237,8 @@ export default class ContactsGroup extends Model {
             }
             return rows;
         } catch (err) {
-            console.log(err);
+            if(process.env.NODE_ENV === 'dev')
+                console.log(err);
         }
         return rows;
     }
@@ -238,7 +258,7 @@ export default class ContactsGroup extends Model {
             where = this.parseFilters(filters);
         try {
             const conn = await DB.connect();
-            var sql = "SELECT number,description,created_moment FROM ContactsGroups WHERE owner = (SELECT id FROM Persons WHERE public_id = ?)";
+            var sql = "SELECT * FROM ContactsGroups WHERE owner = (SELECT id FROM Persons WHERE public_id = ?)";
             if(where) {
                 sql += ' AND '+where.statements.join(' AND ');
                 [rows] = await conn.query(sql,[person.public_id, ...where.values]);
