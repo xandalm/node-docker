@@ -4,7 +4,7 @@ FROM node:16.14
 
 WORKDIR /api
 
-COPY ["package.json","package-lock.json","./"]
+COPY ["package.json","./"]
 
 RUN npm install --production=false
 # RUN npm install -g --save-dev jest

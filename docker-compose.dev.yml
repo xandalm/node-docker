@@ -30,6 +30,7 @@ services:
     - $NODE_LOCAL_PORT:$NODE_DOCKER_PORT
     - $NODEMON_PORT:$NODEMON_PORT
     environment:
+    - NODE_ENV=dev
     - DB_HOST=mysqldb
     - DB_USER=$DB_USER
     - DB_PASSWORD=$DB_ROOT_PASSWORD
