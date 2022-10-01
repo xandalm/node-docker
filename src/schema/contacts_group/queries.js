@@ -1,52 +1,30 @@
-import { GraphQLList, GraphQLNonNull, GraphQLString, GraphQLInt } from 'graphql';
+import { GraphQLNonNull, GraphQLInt } from 'graphql';
 
-import { ContactsGroupPageType, ContactsGroupNonOwnerPageType } from './types.js';
+import { ContactsGroupPageType } from './types.js';
 import ContactsGroup from '../../models/contacts-group.js';
-import Filter from '../../utils/filter.js';
-import { PersonInputType } from '../person/types.js';
-import Person from '../../models/person.js';
+import { Condition } from '../../utils/condition.js';
+import { OrderByInputType, QueryConditionInputType } from '../types.js';
+import { OrderBy } from '../../utils/order.js';
 
 const ContactsGroupQueries = {
     contactsGroups: {
         type: new GraphQLNonNull(ContactsGroupPageType),
         args: {
-            first: {
-                type: GraphQLInt,
-                defaultValue: 10
-            },
-            last: { type: GraphQLInt },
-            filters: {
-                type: new GraphQLList(GraphQLString)
-            }
+            page: { type: GraphQLInt },
+            limit: { type: GraphQLInt },
+            where: { type: QueryConditionInputType },
+            orderBy: { type: OrderByInputType }
         },
-        resolve: async (_, { first, last, filters }) => {
-            const res = await (new ContactsGroup).list(filters=Filter.from(filters).recognizedFilters);
+        resolve: async (_, { page, limit, where, orderBy }) => {
+            const cg = new ContactsGroup;
+            const condition = Condition.from(where);
+            const res = cg.list({ page, limit, condition, orderBy: OrderBy.from(orderBy) });
+            const totalInCondition = cg.count(condition);
+            const totalAll = cg.count();
             return {
-                count: res.length,
-                rows: res
-            };
-        }
-    },
-    personContactsGroups: {
-        type: new GraphQLNonNull(ContactsGroupNonOwnerPageType),
-        args: {
-            first: {
-                type: GraphQLInt,
-                default: 10
-            },
-            owner: { type: PersonInputType },
-            last: { type: GraphQLInt },
-            filters: {
-                type: new GraphQLList(GraphQLString)
-            }
-        },
-        resolve: async (_, { first, last, owner, filters }) => {
-            const person = new Person();
-            person.public_id = owner.publicId;
-            const res = await (new ContactsGroup).listByPerson(person,filters=Filter.from(filters).recognizedFilters);
-            return {
-                count: res.length,
-                rows: res
+                rows: res,
+                totalInCondition,
+                totalAll
             };
         }
     }

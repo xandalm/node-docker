@@ -13,12 +13,12 @@ const ContactsGroupMutations = {
             }
         },
         resolve: async (_, { input }) => {
-            const owner = await (new Person).getByPublicId(input.owner.publicId);
+            const owner = (new Person).getByPublicId(input.ownerId);
             if(owner) {
                 const cgroup = new ContactsGroup();
                 cgroup.owner=owner;
                 cgroup.description=input.description;
-                if(await cgroup.insert())
+                if(cgroup.insert())
                     return cgroup;
             }
             return null;
@@ -32,7 +32,7 @@ const ContactsGroupMutations = {
             }
         },
         resolve: async (_, { input }) => {
-            const cgroup = await (new ContactsGroup).getByPublicId(input.publicId);
+            const cgroup = (new ContactsGroup).getByPublicId(input.publicId);
             if(cgroup) {
                 const prevDesc = cgroup.description;
                 cgroup.description = input.description;
@@ -49,9 +49,9 @@ const ContactsGroupMutations = {
             input: { type: new GraphQLNonNull(ContactsGroupInputType) }
         },
         resolve: async (_, { input }) => {
-            const cgroup = await (new ContactsGroup).getByPublicId(input.publicId);
+            const cgroup = (new ContactsGroup).getByPublicId(input.publicId);
             if(cgroup) {
-                return await cgroup.delete();
+                return cgroup.delete();
             }
             return false;
         }

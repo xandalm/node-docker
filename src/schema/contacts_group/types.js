@@ -4,7 +4,7 @@ import {
     GraphQLInt
 } from 'graphql';
 
-import { PersonInputType, PersonType } from '../person/types.js';
+import { PersonTypeSimplified } from '../person/types.js';
 
 const ContactsGroupType = new GraphQLObjectType({
     name: 'ContactsGroup',
@@ -12,15 +12,15 @@ const ContactsGroupType = new GraphQLObjectType({
         publicId: {
             type: GraphQLString,
             resolve: (obj) => {
-                return obj.public_id??null;
+                return obj.public_id;
             }
         },
-        owner: { type: PersonType },
+        owner: { type: PersonTypeSimplified },
         description: { type: GraphQLString },
         createdMoment: {
             type: GraphQLString,
             resolve: (obj) => {
-                return obj.created_moment.toISOString();
+                return obj.created_moment?.toISOString();
             }
         }
     })
@@ -32,14 +32,14 @@ const ContactsGroupNonOwnerType = new GraphQLObjectType({
         publicId: {
             type: GraphQLString,
             resolve: (obj) => {
-                return obj.public_id??null;
+                return obj.public_id;
             }
         },
         description: { type: GraphQLString },
         createdMoment: {
             type: GraphQLString,
             resolve: (obj) => {
-                return obj.created_moment.toISOString();
+                return obj.created_moment?.toISOString();
             }
         }
     })
@@ -49,7 +49,7 @@ const ContactsGroupInputType = new GraphQLInputObjectType({
     name: 'ContactsGroupInput',
     fields: () => ({
         publicId: { type: GraphQLString },
-        owner: { type: PersonInputType },
+        ownerId: { type: GraphQLString },
         description: { type: GraphQLString },
     })
 });
@@ -58,7 +58,8 @@ const ContactsGroupPageType = new GraphQLObjectType({
     name: 'ContactsGroupPage',
     fields: () => ({
         rows: { type: new GraphQLNonNull(new GraphQLList(ContactsGroupType)) },
-        count: { type: GraphQLInt },
+        totalInCondition: { type: GraphQLInt },
+        totalAll: { type: GraphQLInt }
     })
 });
 
@@ -66,7 +67,8 @@ const ContactsGroupNonOwnerPageType = new GraphQLObjectType({
     name: 'ContactsGroupPageNonOwner',
     fields: () => ({
         rows: { type: new GraphQLNonNull(new GraphQLList(ContactsGroupNonOwnerType)) },
-        count: { type: GraphQLInt },
+        totalInCondition: { type: GraphQLInt },
+        totalAll: { type: GraphQLInt }
     })
 });
 

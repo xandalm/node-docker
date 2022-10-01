@@ -2,6 +2,7 @@ import DB from './connection.js';
 import {v4 as uuidv4} from 'uuid';
 
 import Model from './model.js';
+import { Condition } from '../utils/condition.js'
 
 /**
  * Class to represent person.
@@ -48,49 +49,43 @@ export default class Person extends Model {
      */
     from(obj) {
         if(typeof obj === 'object') {
-            this.id = obj.id??null;
-            this.public_id = obj.public_id??null;
-            this.first_name = obj.first_name??null;
-            this.last_name = obj.last_name??null;
-            this.name = (this.first_name && this.last_name)?`${this.first_name} ${this.last_name}`.trim():null;
-            this.birthday = obj.birthday??null;
-            this.email = obj.email??null;
-            this.status = obj.status??null;
-            this.created_moment = obj.created_moment??null;
-            this.deleted_moment = obj.deleted_moment??null;
+            this.id = obj.id;
+            this.public_id = obj.public_id;
+            this.first_name = obj.first_name?.trim();
+            this.last_name = obj.last_name?.trim();
+            this.name = this.first_name ? (this.last_name? `${this.first_name} ${this.last_name}`: this.first_name): null;
+            this.birthday = obj.birthday;
+            this.email = obj.email;
+            this.status = obj.status;
+            this.created_moment = obj.created_moment;
+            this.deleted_moment = obj.deleted_moment;
             return this;
         }
         return null;
     }
 
     /**
-     * This function parses input filter to MySQL conditions syntax.
-     * Override super class.
-     * 
-     * At super class (Model): 
-     * The Filter object will have the value property modified if needed.
-     * Example: The operator (field ^= string) is (field LIKE 'string%') in MySQL then the value from Filter object will be changed from `string` to `string%`. The function return will be `field LIKE ?`
-     * 
-     * In this class (Person): 
-     * The field property in Filter object will be modified to `CONCAT(first_name,' ',last_name)` when it's `name`.
-     * @param {Filter} filter - The filter that will be parsed to SQL.
+     * This function parses input condition to MySQL conditions syntax. Override super class.
+     * @param {Condition} condition - The condition that will be parsed to SQL.
      * 
      * @returns {String}
      */
-    parseFilter(filter) {
-        filter.field = (filter.field == 'name')?"CONCAT(first_name,' ',last_name)":filter.field
-        return super.parseFilter(filter);
+    _getConditionStatement(condition) {
+        var s = super._getConditionStatement(condition);
+        if(condition.field == 'name')
+            s.statement = s.statement.replace(/name/,"CONCAT(first_name,' ',last_name)");
+        return s;
     }
 
     /**
-     * Save person informations in DB.
+     * Save person.
      * @returns {Person|null} Person that was registered, or null if that fails.
      */
     async insert() {
         try {
             this.public_id = uuidv4();
             const conn = await DB.connect();
-            const res = await conn.query("INSERT INTO Persons SET ?",{
+            await conn.query("INSERT INTO Persons SET ?",{
                 public_id: this.public_id,
                 first_name: this.first_name,
                 last_name: this.last_name,
@@ -106,20 +101,19 @@ export default class Person extends Model {
     }
 
     /**
-     * Update person informations in DB.
+     * Update person.
      * @returns {Person|null} The updated person, or null if that fails.
      */
     async update() {
         try {
             const conn = await DB.connect();
-            const res = await conn.query("UPDATE Persons SET ? WHERE public_id = ?",[{
+            await conn.query("UPDATE Persons SET ? WHERE public_id = ?",[{
                 public_id: this.public_id,
                 first_name: this.first_name,
                 last_name: this.last_name,
                 birthday: this.birthday,
                 email: this.email,
             },this.public_id]);
-            await this.getByPublicId(this.public_id);
             conn.release();
             return this;
         } catch (err) {
@@ -129,14 +123,13 @@ export default class Person extends Model {
     }
 
     /**
-     * Delete the person logically from DB.
+     * Delete the person.
      * @returns {Boolean} [True] if succeded [False] if not.
      */
     async delete() {
-        
         try {
             const conn = await DB.connect();
-            const res = await conn.query("UPDATE Persons SET deleted_moment = CURRENT_TIMESTAMP() WHERE public_id = ?",[
+            await conn.query("UPDATE Persons SET deleted_moment = CURRENT_TIMESTAMP() WHERE public_id = ?",[
                 this.public_id,
             ]);
             conn.release();
@@ -169,36 +162,35 @@ export default class Person extends Model {
     }
 
     /**
-     * Get person from DB by internal ID.
+     * Get person by internal ID.
      * @param {number} id The person identificator.
      * @returns {Person|null}
      */
-    async getById(id) {
-        return await this.#get("SELECT * FROM Persons WHERE id = ?",[id]);
+    getById(id) {
+        return this.#get("SELECT * FROM Persons WHERE id = ?",[id]);
     }
 
     /**
-     * Get person from DB by public ID.
+     * Get person by public ID.
      * @param {String} id  - The person public identificator (uuid).
      * @returns {Person|null}
      */
-    async getByPublicId(id) {
-        return await this.#get("SELECT * FROM Persons WHERE public_id = ?",[id]);
+    getByPublicId(id) {
+        return this.#get("SELECT * FROM Persons WHERE public_id = ?",[id]);
     }
 
     /**
-     * Get person from DB by email.
+     * Get person by email.
      * @param {String} email  - The person email.
      * @returns {Person|null}
      */
-     async getByEmail(email) {
-        return await this.#get("SELECT * FROM Persons WHERE email = ?",[email]);
+    getByEmail(email) {
+        return this.#get("SELECT * FROM Persons WHERE email = ?",[email]);
     }
 
     /**
      * Get list of persons.
-     * 
-     * @param {Array<Filter>} filters - Filters to refine search results
+     * @param {Array<Condition>} conditions - Conditions to refine search results
      * 
      * Suported Fields:
      * public_id,
@@ -224,31 +216,53 @@ export default class Person extends Model {
      * 
      * @return {Array<Person>} List of persons.
      */
-    async list(filters=[]) {
+    async list(config={}) {
         var rows=[];
-        var where;
-        if(filters.length > 0)
-            where = this.parseFilters(filters);
+        const { limit, offset, where, orderBy } = super.list(config);
         try {
             const conn = await DB.connect();
-            var sql = "SELECT public_id,first_name,last_name,birthday,email FROM Persons";
+            var sql = "SELECT * FROM Persons";
+            const params = [];
             if(where) {
-                sql += ' WHERE '+where.statements.join(' AND ');
-                [rows] = await conn.query(sql,where.values);
-            } else {
-                [rows] = await conn.query(sql);
+                sql += ' WHERE '+where.statement;
+                // params = where.params;
+                params.push(...where.params);
             }
+            if(orderBy)
+                sql += ` ORDER BY ${orderBy}`;
+            sql += ' LIMIT ?, ?';
+            params.push(offset,limit);
+            [rows] = await conn.query(sql, params);
             conn.release();
-            // rows = rows.map((r) => {
-            //     let {id, ...data} = r;
-            //     data.birthday = data.birthday.toISOString();
-            //     return data;
-            // });
-            return rows;
+            rows = rows.map(r => (new Person).from(r));
         } catch (err) {
             console.log(err);
         }
         return rows;
+    }
+
+    /**
+     * Get the number of persons
+     * @param {Condition} condition 
+     * @returns {number}
+     */
+    async count(condition) {
+        var total = null;
+        const { where } = super.list({condition});
+        try {
+            const conn = await DB.connect();
+            var sql = "SELECT count(id) as total FROM Persons";
+            var params = [];
+            if(where) {
+                sql += ' WHERE '+where.statement;
+                params = where.params;
+            }
+            [[{total}]] = await conn.query(sql, params);
+            conn.release();
+        } catch (err) {
+            console.log(err);
+        }
+        return total;
     }
 
 }

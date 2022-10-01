@@ -19,7 +19,7 @@ const PersonMutations = {
             person.last_name=input.lastName;
             person.birthday=input.birthday;
             person.email=input.email;
-            if(await person.insert())
+            if(person.insert())
                 return person
             return null;
         }
@@ -33,13 +33,13 @@ const PersonMutations = {
         },
         resolve: async (_, args) => {
             const { input } = args;
-            const person = await (new Person).getByPublicId(input.publicId);
+            const person = (new Person).getByPublicId(input.publicId);
             if(person) {
                 person.first_name=input.firstName;
                 person.last_name=input.lastName;
                 person.birthday=input.birthday;
                 person.email=input.email;
-                if(await person.update()) 
+                if(person.update()) 
                     return person;
             }
             return null;
@@ -53,9 +53,9 @@ const PersonMutations = {
             }
         },
         resolve: async (_, { input }) => {
-            const person = await (new Person).getByPublicId(input.publicId);
+            const person = (new Person).getByPublicId(input.publicId);
             if(person)
-                return await person.delete();
+                return person.delete();
             return false;
         }
     }

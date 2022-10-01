@@ -1,3 +1,4 @@
+import { Condition } from "../utils/condition.js";
 import DB from "./connection.js";
 import Model from "./model.js";
 import Person from "./person.js";
@@ -11,7 +12,7 @@ export default class Contact extends Model {
     static _filterableFields = ['id','owner','person','created_moment','deleted_moment']
 
     static get filterableFields() {
-        return Person._filterableFields;
+        return Contact._filterableFields;
     }
     /**
      * Create a contact.
@@ -35,64 +36,49 @@ export default class Contact extends Model {
      */
     from(obj) {
         if(typeof obj === 'object') {
-            this.owner=(new Person).from(obj.owner)??this.owner;
-            this.person=(new Person).from(obj.person)??this.person;
-            this.created_moment=obj.created_moment??null;
-            this.deleted_moment=obj.deleted_moment??null;
+            this.owner=(new Person).from(obj.owner);
+            this.person=(new Person).from(obj.person);
+            this.created_moment=obj.created_moment;
+            this.deleted_moment=obj.deleted_moment;
             return this;
         }
         return null;
     }
 
     /**
-     * This function parses input filter to MySQL conditions syntax.
-     * Override super class.
-     * 
-     * At super class (Model): 
-     * The Filter object will have the value property modified if needed.
-     * Example: The operator (field ^= string) is (field LIKE 'string%') in MySQL then the value from Filter object will be changed from `string` to `string%`. The function return will be `field LIKE ?`
-     * 
-     * In this class (Contact): 
-     * The field `owner` cause a special return and only work if the operator is `==`, i. e. `owner==[any owner public_id]`. It happens to `person` field too.
-     * 
-     * @param {Filter} filter - The filter that will be parsed to SQL.
-     * 
+     * This function parses input condition to MySQL conditions syntax. Override super class.
+     * @override
+     * @param {Condition} condition - The condition that will be parsed to SQL.
      * @returns {String}
      */
-    parseFilter(filter) {
-        if(filter.field === 'owner' || filter.field === 'person') {
-            if(filter.operator !== '==')
-                throw `Invalid operator for '${filter.field}' field.`;
-            return `${filter.field} = (SELECT id FROM Persons WHERE public_id = ?)`;
+    _getConditionStatement(condition) {
+        var s = super._getConditionStatement(condition);
+        if(condition.field === 'owner' || condition.field === 'person') {
+            if(condition.operator !== '==')
+                throw `Invalid operator for '${condition.field}' field.`;
+            s.statement = `${condition.field} = (SELECT id FROM Persons WHERE public_id = ?)`;
         }
-        else
-            return super.parseFilter(filter);
+        return s;
     }
 
     /**
-     * Save contact informations in DB.
+     * Save contact.
      * @returns {ContactsGroup|null} Contact that was registered, or null if that fails.
      */
     async insert() {
         try {
-            var res;
             const conn = await DB.connect();
-            
             if(this.deleted_moment==null)
-                res = await conn.query("INSERT INTO Contacts SET ?",{
+                await conn.query("INSERT INTO Contacts SET ?",{
                     owner: this.owner.id,
                     person: this.person.id
                 });
             else
-                res = await conn.query("UPDATE Contacts SET created_moment = CURRENT_TIMESTAMP(), deleted_moment = NULL WHERE owner = ? AND person = ?",[
+                await conn.query("UPDATE Contacts SET created_moment = CURRENT_TIMESTAMP(), deleted_moment = NULL WHERE owner = ? AND person = ?",[
                     this.owner.id,
                     this.person.id
                 ]);
-
-            await this.get(this.owner,this.person);
-
             conn.release();
-
             return this;
         } catch (err) {
             console.log(err);
@@ -102,13 +88,13 @@ export default class Contact extends Model {
     }
 
     /**
-     * Delete the contact logically from DB.
-     * @returns {Boolean} [True] if succeded [False] if not.
+     * Delete the contact.
+     * @returns {Boolean}
      */
-     async delete() {
+    async delete() {
         try {
             const conn = await DB.connect();
-            var res = await conn.query("UPDATE Contacts SET deleted_moment = CURRENT_TIMESTAMP() WHERE owner = ? AND person = ?",[
+            await conn.query("UPDATE Contacts SET deleted_moment = CURRENT_TIMESTAMP() WHERE owner = ? AND person = ?",[
                 this.owner.id,
                 this.person.id
             ]);
@@ -121,10 +107,10 @@ export default class Contact extends Model {
     }
 
     /**
-     * Get contact from database.
-     * @param {*} owner The owner from the contact. May have public ID.
-     * @param {*} person The person contact. May have public ID.
-     * @returns 
+     * Get contact.
+     * @param {Person} owner The owner from the contact. May have public ID.
+     * @param {Person} person The person contact. May have public ID.
+     * @returns {Contact}
      */
     async get(owner,person) {
         try {
@@ -139,8 +125,8 @@ export default class Contact extends Model {
                     created_moment: rows[0].created_moment,
                     deleted_moment: rows[0].deleted_moment,
                 });
-                this.owner = await (new Person).getByPublicId(owner.public_id);
-                this.person = await (new Person).getByPublicId(person.public_id);
+                this.owner = (new Person).getByPublicId(owner.public_id);
+                this.person = (new Person).getByPublicId(person.public_id);
                 return this;
             }
         } catch (err) {
@@ -151,8 +137,7 @@ export default class Contact extends Model {
 
     /**
      * Get list of contacts.
-     * 
-     * @param {Array<Filter>} filters - Filters to refine search results
+     * @param {Array<Condition>} conditions - Conditions to refine search results
      * 
      * Suported Fields:
      * owner,
@@ -173,20 +158,22 @@ export default class Contact extends Model {
      * 
      * @return {Array<Person>} List of contacts.
      */
-     async list(filters=[]) {
+    async list(config={}) {
         var rows=[];
-        var where;
-        if(filters.length > 0)
-            where = this.parseFilters(filters);
+        const { limit, offset, where, orderBy } = super.list(config);
         try {
             const conn = await DB.connect();
             var sql = "SELECT * FROM Contacts";
+            const params = [];
             if(where) {
-                sql += ' WHERE '+where.statements.join(' AND ');
-                [rows] = await conn.query(sql,where.values);
-            } else {
-                [rows] = await conn.query(sql);
+                sql += ' WHERE '+where.statement;
+                params.push(...where.params);
             }
+            if(orderBy)
+                sql += ` ORDER BY ${orderBy}`;
+            sql += ' LIMIT ?, ?';
+            params.push(offset,limit);
+            [rows] = await conn.query(sql,params);
             if(rows.length > 0) {
                 // Create set with owners/persons IDs (set prevent ID repeat)
                 var ids = new Set();
@@ -212,7 +199,6 @@ export default class Contact extends Model {
                 });
             }
             conn.release();
-            return rows;
         } catch (err) {
             console.log(err);
         }
@@ -220,21 +206,48 @@ export default class Contact extends Model {
     }
 
     /**
-     * List contacts registered to owner.
+     * Get the number of contacts.
+     * @param {Condition} condition 
+     * @returns {integer|null}
+     */
+    async count(condition) {
+        var total = null;
+        const { where } = super.list({condition});
+        try {
+            const conn = await DB.connect();
+            var sql = "SELECT count(id) as total FROM Contacts";
+            var params = [];
+            if(where) {
+                sql += ' WHERE '+where.statement;
+                params = where.params;
+            }
+            [[{total}]] = await conn.query(sql, params);
+            conn.release();
+        } catch (err) {
+            console.log(err);
+        }
+        return total;
+    }
+
+    /**
+     * List owner contacts.
      * @param {Person} owner The owner from contacts. May have public ID.
      * @returns {Array<Contact>}
      */
-    async listByOwner(owner,filters=[]) {
+    async listByOwner(owner,condition) {
         var rows=[];
         var where;
-        if(filters.length > 0)
-            where = this.parseFilters(filters);
+        if(condition)
+            if(condition instanceof Condition)
+                where = this._prepareConditionToSQL(condition);
+            else
+                throw new TypeError("Expected condition to be Condition type");
         try {
             const conn = await DB.connect();
             var sql = "SELECT * FROM Contacts WHERE owner = (SELECT id FROM Persons WHERE public_id = ?)";
             if(where) {
-                sql += ' AND '+where.statements.join(' AND ');
-                [rows] = await conn.query(sql,[owner.public_id, ...where.values]);
+                sql += ' AND '+where.statement;
+                [rows] = await conn.query(sql,[owner.public_id, ...where.params]);
             } else {
                 [rows] = await conn.query(sql,owner.public_id);
             }
