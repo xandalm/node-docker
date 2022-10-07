@@ -5,7 +5,6 @@ import {
 } from 'graphql';
 import Contact from '../../models/contact.js';
 import ContactsGroup from '../../models/contacts-group.js';
-import Person from '../../models/person.js';
 import { ContactType } from '../contacts/types.js';
 import { ContactsGroupType } from '../contacts_group/types.js';
 
@@ -13,7 +12,7 @@ const PersonInputType = new GraphQLInputObjectType({
     name: 'PersonInput',
     description: 'Input to build person in server side',
     fields: () => ({
-        publicId: { type: GraphQLString },
+        PID: { type: GraphQLString },
         firstName: { type: GraphQLString },
         lastName: { type: GraphQLString },
         birthday: { type: GraphQLString },
@@ -24,7 +23,7 @@ const PersonInputType = new GraphQLInputObjectType({
 const PersonTypeSimplified = new GraphQLObjectType({
     name: 'PersonSimplified',
     fields: () => ({
-        publicId: {
+        PID: {
             type: GraphQLString,
             resolve: (obj) => {
                 return obj.public_id;
@@ -66,7 +65,7 @@ const PersonTypeSimplified = new GraphQLObjectType({
 const PersonType = new GraphQLObjectType({
     name: 'Person',
     fields: () => ({
-        publicId: {
+        PID: {
             type: GraphQLString,
             resolve: (obj) => {
                 return obj.public_id;

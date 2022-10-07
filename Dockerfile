@@ -6,7 +6,7 @@ WORKDIR /api
 
 COPY ["package.json","./"]
 
-RUN npm install --production=false
+RUN npm install --omit=dev
 # RUN npm install -g --save-dev jest
 # RUN npm install -g --save-dev babel-jest
 

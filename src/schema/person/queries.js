@@ -1,11 +1,8 @@
-import { GraphQLNonNull, GraphQLList, GraphQLInt, GraphQLString } from 'graphql';
+import { GraphQLNonNull, GraphQLInt, GraphQLString } from 'graphql';
 
 import { PersonPageType, PersonType } from './types.js';
 import { OrderByInputType, QueryConditionInputType } from '../types.js';
-import Person from '../../models/person.js';
-
-import { Condition } from '../../utils/condition.js';
-import { OrderBy } from '../../utils/order.js';
+import PersonController from '../../controllers/person.js';
 
 const PersonQueries = {
     persons: {
@@ -16,30 +13,14 @@ const PersonQueries = {
             where: { type: QueryConditionInputType },
             orderBy: { type: OrderByInputType }
         },
-        resolve: async (_, { page, limit, where, orderBy }) => {
-            const person = new Person;
-            const condition = Condition.from(where);
-            const res = person.list({ page, limit, condition, orderBy: OrderBy.from(orderBy) });
-            const totalInCondition = person.count(condition);
-            const totalAll = person.count();
-            return {
-                rows: res,
-                totalInCondition,
-                totalAll
-            };
-        }
+        resolve: (_, { page, limit, where, orderBy }) => PersonController.getPersons(page, limit, where, orderBy)
     },
     person: {
         type: PersonType,
         args: {
-            publicId: {
-                type: GraphQLString
-            }
+            PID: { type: new GraphQLNonNull(GraphQLString) }
         },
-        resolve: async (_, { publicId }) => {
-            const person = (new Person).getByPublicId(publicId);
-            return person;
-        }
+        resolve: (_, { PID }) => PersonController.getUniquePerson(PID)
     }
 };
 

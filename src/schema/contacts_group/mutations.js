@@ -1,7 +1,6 @@
-import { GraphQLNonNull, GraphQLBoolean } from 'graphql';
+import { GraphQLNonNull, GraphQLBoolean, GraphQLString } from 'graphql';
+import ContactsGroupController from '../../controllers/contacts-group.js';
 
-import ContactsGroup from "../../models/contacts-group.js";
-import Person from "../../models/person.js";
 import { ContactsGroupInputType, ContactsGroupNonOwnerType, ContactsGroupType } from "./types.js";
 
 const ContactsGroupMutations = {
@@ -12,17 +11,7 @@ const ContactsGroupMutations = {
                 type: new GraphQLNonNull(ContactsGroupInputType)
             }
         },
-        resolve: async (_, { input }) => {
-            const owner = (new Person).getByPublicId(input.ownerId);
-            if(owner) {
-                const cgroup = new ContactsGroup();
-                cgroup.owner=owner;
-                cgroup.description=input.description;
-                if(cgroup.insert())
-                    return cgroup;
-            }
-            return null;
-        }
+        resolve: (_, { input }) => ContactsGroupController.createContactsGroup(input)
     },
     updateContactsGroup: {
         type: ContactsGroupType,
@@ -31,30 +20,14 @@ const ContactsGroupMutations = {
                 type: new GraphQLNonNull(ContactsGroupInputType)
             }
         },
-        resolve: async (_, { input }) => {
-            const cgroup = (new ContactsGroup).getByPublicId(input.publicId);
-            if(cgroup) {
-                const prevDesc = cgroup.description;
-                cgroup.description = input.description;
-                if(!await cgroup.update())
-                    cgroup.description = prevDesc;
-                return cgroup;
-            }
-            return null;
-        }
+        resolve: (_, { input }) => ContactsGroupController.updateContactsGroup(input)
     },
     deleteContactsGroup: {
         type: GraphQLBoolean,
         args: {
-            input: { type: new GraphQLNonNull(ContactsGroupInputType) }
+            PID: { type: new GraphQLNonNull(GraphQLString) }
         },
-        resolve: async (_, { input }) => {
-            const cgroup = (new ContactsGroup).getByPublicId(input.publicId);
-            if(cgroup) {
-                return cgroup.delete();
-            }
-            return false;
-        }
+        resolve: (_, { PID }) => ContactsGroupController.deleteContactsGroup(PID)
     }
 };
 

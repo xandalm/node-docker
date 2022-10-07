@@ -2,7 +2,7 @@ import DB from './connection.js';
 import {v4 as uuidv4} from 'uuid';
 
 import Model from './model.js';
-import { Condition } from '../utils/condition.js'
+import { Condition } from '../utils/condition.js';
 
 /**
  * Class to represent person.

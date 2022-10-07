@@ -1,12 +1,12 @@
 import { GraphQLObjectType, GraphQLInputObjectType, GraphQLNonNull, GraphQLList, GraphQLString, GraphQLInt } from 'graphql';
-import { PersonInputType, PersonTypeSimplified } from '../person/types.js';
+import { PersonTypeSimplified } from '../person/types.js';
 
 const ContactInputType = new GraphQLInputObjectType({
     name: 'ContactInput',
     description: '',
     fields: () => ({
-        ownerId: { type: GraphQLString },
-        personId: { type: GraphQLString }
+        ownerPID: { type: GraphQLString },
+        personPID: { type: GraphQLString }
     })
 });
 

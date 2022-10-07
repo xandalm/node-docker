@@ -9,7 +9,7 @@ import { PersonTypeSimplified } from '../person/types.js';
 const ContactsGroupType = new GraphQLObjectType({
     name: 'ContactsGroup',
     fields: () => ({
-        publicId: {
+        PID: {
             type: GraphQLString,
             resolve: (obj) => {
                 return obj.public_id;
@@ -29,7 +29,7 @@ const ContactsGroupType = new GraphQLObjectType({
 const ContactsGroupNonOwnerType = new GraphQLObjectType({
     name: 'ContactsGroupNonOwner',
     fields: () => ({
-        publicId: {
+        PID: {
             type: GraphQLString,
             resolve: (obj) => {
                 return obj.public_id;
@@ -48,8 +48,8 @@ const ContactsGroupNonOwnerType = new GraphQLObjectType({
 const ContactsGroupInputType = new GraphQLInputObjectType({
     name: 'ContactsGroupInput',
     fields: () => ({
-        publicId: { type: GraphQLString },
-        ownerId: { type: GraphQLString },
+        PID: { type: GraphQLString },
+        ownerPID: { type: GraphQLString },
         description: { type: GraphQLString },
     })
 });
